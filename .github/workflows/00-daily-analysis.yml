@@ -360,6 +360,18 @@ jobs:
           TRADING_DAY_CHECK_ENABLED: ${{ vars.TRADING_DAY_CHECK_ENABLED || secrets.TRADING_DAY_CHECK_ENABLED || 'true' }}
           
           # ==========================================
+          # 选股功能配置（新增）
+          # ==========================================
+          # 启用选股功能：设置为 true 开启技术指标自动选股
+          STOCK_SELECTOR_ENABLED: ${{ vars.STOCK_SELECTOR_ENABLED || secrets.STOCK_SELECTOR_ENABLED || 'false' }}
+          # 选股策略：aggressive(激进型)、steady(稳健型)、trend(趋势型)、short_term(短线型)
+          STOCK_SELECTOR_STRATEGY: ${{ vars.STOCK_SELECTOR_STRATEGY || secrets.STOCK_SELECTOR_STRATEGY || 'aggressive' }}
+          # 选股数量：每次选出的股票数量
+          STOCK_SELECTOR_TOP_N: ${{ vars.STOCK_SELECTOR_TOP_N || secrets.STOCK_SELECTOR_TOP_N || '10' }}
+          # 是否将选股结果追加到 STOCK_LIST 进行分析
+          STOCK_SELECTOR_APPEND: ${{ vars.STOCK_SELECTOR_APPEND || secrets.STOCK_SELECTOR_APPEND || 'true' }}
+          
+          # ==========================================
           # 系统配置
           # ==========================================
           LOG_LEVEL: INFO
@@ -448,6 +460,12 @@ jobs:
           echo "  Discord: $([ -n "$DISCORD_WEBHOOK_URL" ] && echo '✅ 已配置' || echo '⚪ 未配置')"
           echo "  AstrBot: $([ -n "$ASTRBOT_URL" ] && echo '✅ 已配置' || echo '⚪ 未配置')"
           echo "  Slack: $(([ -n "$SLACK_WEBHOOK_URL" ] || ([ -n "$SLACK_BOT_TOKEN" ] && [ -n "$SLACK_CHANNEL_ID" ])) && echo '✅ 已配置' || echo '⚪ 未配置')"
+          echo ""
+          echo "【选股功能】"
+          echo "  启用状态: $([ "$STOCK_SELECTOR_ENABLED" = 'true' ] && echo '✅ 已启用' || echo '⚪ 未启用')"
+          echo "  选股策略: $STOCK_SELECTOR_STRATEGY"
+          echo "  选股数量: $STOCK_SELECTOR_TOP_N"
+          echo "  追加分析: $([ "$STOCK_SELECTOR_APPEND" = 'true' ] && echo '✅ 是' || echo '⚪ 否')"
           echo "=========================================="
           echo ""
           

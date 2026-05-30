@@ -296,13 +296,41 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         '--market-review',
         action='store_true',
-        help='仅运行大盘复盘分析'
+        help='仅运行大盘复盘'
     )
 
     parser.add_argument(
         '--no-market-review',
         action='store_true',
         help='跳过大盘复盘分析'
+    )
+
+    # === 选股功能 ===
+    parser.add_argument(
+        '--selector',
+        action='store_true',
+        help='启用选股功能（根据技术指标自动筛选股票）'
+    )
+
+    parser.add_argument(
+        '--selector-strategy',
+        type=str,
+        default='aggressive',
+        choices=['aggressive', 'steady', 'trend', 'short_term'],
+        help='选股策略：aggressive(激进型)、steady(稳健型)、trend(趋势型)、short_term(短线型)'
+    )
+
+    parser.add_argument(
+        '--selector-top-n',
+        type=int,
+        default=10,
+        help='选股数量（默认 10 只）'
+    )
+
+    parser.add_argument(
+        '--selector-only',
+        action='store_true',
+        help='仅运行选股，不进行后续分析'
     )
 
     parser.add_argument(
@@ -487,6 +515,77 @@ def run_full_analysis(
         if stock_codes is None:
             config.refresh_stock_list()
 
+        # === 选股功能 ===
+        enable_selector = (
+            getattr(args, 'selector', False) 
+            or getattr(config, 'stock_selector_enabled', False)
+        )
+        
+        selected_stocks = []
+        if enable_selector:
+            logger.info("=" * 60)
+            logger.info("📊 智能选股模块")
+            logger.info("=" * 60)
+            
+            try:
+                from src.services.stock_selector import StockSelector
+                from src.config_selector import get_strategy
+                from data_provider.base import DataFetcherManager
+                
+                # 获取选股策略
+                strategy_name = getattr(args, 'selector_strategy', None) or getattr(config, 'stock_selector_strategy', 'aggressive')
+                criteria = get_strategy(strategy_name)
+                
+                # 覆盖 top_n
+                selector_top_n = getattr(args, 'selector_top_n', None) or criteria.top_n
+                criteria.top_n = selector_top_n
+                
+                logger.info(f"选股策略: {strategy_name}")
+                logger.info(f"选股数量: {selector_top_n}")
+                
+                # 创建选股器
+                data_manager = DataFetcherManager()
+                selector = StockSelector(data_manager)
+                
+                # 执行综合选股
+                selected_stocks = selector.combined_selection(criteria)
+                
+                # 输出选股报告
+                selection_report = selector.format_selection_report(selected_stocks)
+                logger.info(f"\n{selection_report}")
+                
+                # 发送选股报告（如果启用通知）
+                if not args.no_notify:
+                    try:
+                        from src.notification import NotificationService
+                        notifier = NotificationService(config)
+                        if notifier.is_available():
+                            notifier.send(f"# 📊 智能选股报告\n\n{selection_report}", route_type="report")
+                            logger.info("选股报告已发送")
+                    except Exception as notify_err:
+                        logger.warning(f"发送选股报告失败: {notify_err}")
+                
+                # 如果启用追加到股票列表
+                append_to_list = getattr(config, 'stock_selector_append', True)
+                if append_to_list and selected_stocks:
+                    selected_codes = [s.code for s in selected_stocks]
+                    if stock_codes:
+                        stock_codes = list(set(stock_codes + selected_codes))
+                    else:
+                        stock_codes = selected_codes
+                    logger.info(f"已将选股结果追加到分析列表: {selected_codes}")
+                
+                logger.info("选股模块完成")
+                
+                # 如果只运行选股，跳过后续分析
+                if getattr(args, 'selector_only', False):
+                    logger.info("\n任务执行完成（选股模式）")
+                    return
+                
+            except Exception as selector_err:
+                logger.error(f"选股失败: {selector_err}")
+                logger.warning("选股失败，继续执行默认分析流程")
+        
         # Issue #373: Trading day filter (per-stock, per-market)
         effective_codes = stock_codes if stock_codes is not None else config.stock_list
         filtered_codes, effective_region, should_skip = _compute_trading_day_filter(

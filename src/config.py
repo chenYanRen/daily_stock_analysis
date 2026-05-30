@@ -883,6 +883,12 @@ class Config:
     # 交易日检查：默认启用，非交易日跳过执行；设为 false 或 --force-run 可强制执行（Issue #373）
     trading_day_check_enabled: bool = True
 
+    # === 选股功能配置 ===
+    stock_selector_enabled: bool = False  # 是否启用选股功能
+    stock_selector_strategy: str = "aggressive"  # 选股策略：aggressive(激进型)、steady(稳健型)、trend(趋势型)、short_term(短线型)
+    stock_selector_top_n: int = 10  # 每次选出的股票数量
+    stock_selector_append: bool = True  # 是否将选股结果追加到 STOCK_LIST
+
     # === 实时行情增强数据配置 ===
     # 实时行情开关（关闭后使用历史收盘价进行分析）
     enable_realtime_quote: bool = True
@@ -1681,6 +1687,11 @@ class Config:
                 os.getenv('MARKET_REVIEW_COLOR_SCHEME', 'green_up')
             ),
             trading_day_check_enabled=os.getenv('TRADING_DAY_CHECK_ENABLED', 'true').lower() != 'false',
+            # 选股功能配置
+            stock_selector_enabled=os.getenv('STOCK_SELECTOR_ENABLED', 'false').lower() == 'true',
+            stock_selector_strategy=os.getenv('STOCK_SELECTOR_STRATEGY', 'aggressive'),
+            stock_selector_top_n=parse_env_int(os.getenv('STOCK_SELECTOR_TOP_N'), 10, field_name='STOCK_SELECTOR_TOP_N', minimum=1, maximum=50),
+            stock_selector_append=os.getenv('STOCK_SELECTOR_APPEND', 'true').lower() != 'false',
             webui_enabled=os.getenv('WEBUI_ENABLED', 'false').lower() == 'true',
             webui_host=os.getenv('WEBUI_HOST', '127.0.0.1'),
             webui_port=parse_env_int(os.getenv('WEBUI_PORT'), 8000, field_name='WEBUI_PORT', minimum=1, maximum=65535),
